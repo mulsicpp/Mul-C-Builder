@@ -1,29 +1,23 @@
-#include <stdio.h>
+#define PY_SSIZE_T_CLEAN
+#include "../Python311/include/Python.h"
 
-#include "../json/single_include/nlohmann/json.hpp"
+void main()
+{
+    FILE* file;
+    int argc;
+    wchar_t a[100] = L"a";
+    wchar_t b[100] = L"b";
+    wchar_t c[100] = L"c";
+    wchar_t *args[3] = { a, b, c };
 
-using json = nlohmann::json;
+    argc = 3;
 
-int main(void) {
-    printf("Hello World!\n");
+    Py_SetProgramName(args[0]);
+    Py_Initialize();
+    
+    PySys_SetArgv(argc, args);
+    PyRun_SimpleString("import sys\n\nprint(sys.argv[0])");
+    Py_Finalize();
 
-    json j = R"(
-        {
-            "a": 1,
-            "b": "x",
-            "c": [
-                1,
-                2,
-                3
-            ],
-            "d": {
-                "d1": "hello",
-                "d2": "you"
-            }
-        }
-    )"_json;
-
-    printf("%s\n", j.dump(4).c_str());
-
-    return 0;
+    return;
 }
