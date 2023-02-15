@@ -3,9 +3,10 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-project(mul-c-build)
+project(mul-c)
 
 
-add_executable(mul-c-build main.cpp)
+add_executable(mul-c main.cpp Builder.cpp CLIOptions.cpp)
+target_include_directories(mul-c PUBLIC ../Python311/include)
 
-target_link_libraries(mul-c-build PUBLIC ../Python311/libs/python311 ../Python311/libs/python3)
+target_link_libraries(mul-c PUBLIC ../Python311/libs/python311 ../Python311/libs/python3)
