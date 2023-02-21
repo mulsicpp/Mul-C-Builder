@@ -7,16 +7,16 @@ class FlagIterator
 {
 private:
     int argc;
-    const char **argv;
+    char **argv;
 
     int index;
 
 public:
-    FlagIterator(int argc, const char **argv);
+    FlagIterator(int argc, char **argv);
 
     bool hasNext(void);
-    const char *next(void);
-    const char *current(void);
+    char *next(void);
+    char *current(void);
 };
 
 class Flag
@@ -26,7 +26,7 @@ private:
 
 public:
     Flag(std::vector<const char *> names, std::function<void(void)> func);
-    Flag(std::vector<const char *> names, std::function<void(std::string)> func);
+    Flag(std::vector<const char *> names, std::function<void(char *)> func);
 
     bool process(FlagIterator *it);
 };
@@ -37,11 +37,22 @@ struct CLIOptions
     bool force = false;
     std::string path = ".";
 
-    std::string s;
+    enum class Action {
+        BUILD,
+        SETUP,
+        CLEAR
+    } action = Action::BUILD;
+
+    std::unordered_map<std::string, std::string> vars;
 
     std::vector<Flag> flags = {
         Flag({"--run", "-r"}, [this](){ this->run = true; }),
         Flag({"--force", "-f"}, [this](){ this->force = true; }),
-        Flag({"--path", "-p"}, [this](std::string s){ this->path = s; })
+        Flag({"--path", "-p"}, [this](char* s){ this->path = s; }),
+        Flag({"--var", "-v"}, [this](char* name){
+            char *value = strchr(name, '=');
+            *value++ = 0;
+            vars[name] = value;
+        })
     };
 };

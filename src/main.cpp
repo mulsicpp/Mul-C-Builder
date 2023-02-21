@@ -4,9 +4,7 @@ int main(int argc, char *argv[])
 {
     Builder builder;
 
-    builder.passArgs(argc, argv);
-    //builder.generateBuildInfo();
-    //builder.build();
+    builder.run(argc, argv);
 
     return 0;
 }

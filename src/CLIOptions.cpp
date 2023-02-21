@@ -1,23 +1,23 @@
 #include "CLIOptions.h"
-#include "general.h"
+#include "utils.h"
 
 #include <string.h>
 
-FlagIterator::FlagIterator(int argc, const char **argv) : argc(argc), argv(argv), index(-1) {}
+FlagIterator::FlagIterator(int argc, char **argv) : argc(argc), argv(argv), index(-1) {}
 
 bool FlagIterator::hasNext(void)
 {
     return index + 1 < argc;
 }
 
-const char *FlagIterator::next()
+char *FlagIterator::next()
 {
     if (++index < argc)
         return argv[index];
     return nullptr;
 }
 
-const char *FlagIterator::current()
+char *FlagIterator::current()
 {
     if (index < argc)
         return argv[index];
@@ -39,7 +39,7 @@ Flag::Flag(std::vector<const char *> names, std::function<void(void)> func)
     };
 }
 
-Flag::Flag(std::vector<const char *> names, std::function<void(std::string)> func)
+Flag::Flag(std::vector<const char *> names, std::function<void(char *)> func)
 {
     processor = [names, func](FlagIterator *it) -> bool
     {
@@ -49,8 +49,8 @@ Flag::Flag(std::vector<const char *> names, std::function<void(std::string)> fun
             {
                 auto param = it->next();
                 if(param == nullptr)
-                    ERROR("Flag \'%s\' requires a value", flag);
-                func(it->next());
+                    error("Flag \'%s\' requires a value", flag);
+                func(param);
                 return true;
             }
         return false;

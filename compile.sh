@@ -1,6 +1,6 @@
 #! /bin/bash
 
-rm -f cppbuild.exe
+rm -f mul-c
 
 cmake -S src -B build
 cmake --build build --config Release

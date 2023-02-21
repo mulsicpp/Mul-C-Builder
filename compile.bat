@@ -1,4 +1,4 @@
-del cppbuild.exe
+del mul-c.exe
 
 cmake -S src -B build
 cmake --build build --config Release
