@@ -1,0 +1,13 @@
+{
+    "compile": {
+        "os": "windows"
+    },
+    "link": {
+        "config": "release"
+    },
+    "export": {
+        "arch": "x64",
+        "name": "lol123",
+        "x": "3"
+    }
+}
