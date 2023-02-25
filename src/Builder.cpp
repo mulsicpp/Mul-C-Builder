@@ -11,8 +11,13 @@
 
 #include <string>
 
+#if defined(_WIN32)
 #define PY_SSIZE_T_CLEAN
-#include "../Python311/include/Python.h"
+#include "../Python311_windows/include/Python.h"
+#elif defined(__linux__)
+#define PY_SSIZE_T_CLEAN
+#include "../python3.8_linux/include/Python.h"
+#endif
 
 #include "Builder.h"
 #include "utils.h"

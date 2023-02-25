@@ -10,7 +10,7 @@ config = {
     "export": {
         "arch": arch,
         "name": var("name"),
-        "x": var("x")
+        "x": 1
     }
 }
 
