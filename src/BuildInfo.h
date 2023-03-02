@@ -5,6 +5,21 @@
 
 struct BuildInfo
 {
+    struct Compile {
+        struct TranslationUnit {
+            std::string cFilePath;
+            std::string oFilePath;
+        };
+
+        std::vector<TranslationUnit> translationUnits;
+
+        std::string std;
+        std::vector<std::string> includePaths;
+        std::vector<std::string> defines;
+
+        std::vector<std::string> additionalFlags;
+    } compile;
+
     struct Output
     {
         enum class Type
@@ -14,15 +29,33 @@ struct BuildInfo
             DLL
         } type;
         std::string path;
+
+        std::vector<std::string> libPaths;
+        std::vector<std::string> libs;
+        std::vector<std::string> namedLibs;
+
+        std::vector<std::string> additionalFlags;
+    } output;
+
+    struct Export
+    {
+        enum class Type {
+            FILE,
+            HEADERS
+        } type;
+        std::string srcPath;
+        std::string destPath;
     };
 
-    Output output;
-    std::vector<std::string> include_paths;
-    std::vector<std::string> defines;
-    std::string std;
+    std::vector<Export> exports;
 
-    std::vector<std::string> lib_paths;
-    std::vector<std::string> libs;
-    std::vector<std::string> link_libs;
+    struct Command {
+        std::string appPath;
+        std::vector<std::string> args;
+    };
 
+    std::vector<Command> preBuildCommands;
+    std::vector<Command> postBuildCommands;
+
+    std::string exportSettings = "";
 };

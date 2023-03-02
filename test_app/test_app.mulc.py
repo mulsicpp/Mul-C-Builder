@@ -1,16 +1,15 @@
 from mulC import *
 
 config = {
+    "mode": mode,
     "compile": {
-        "os": platform
-    },
-    "link": {
-        "config": config
-    },
-    "export": {
-        "arch": arch,
-        "name": var("name"),
-        "x": 1
+        "sources": [
+            "src1",
+            "src2"
+        ],
+        "sourceBlackList": [
+            "src1"
+        ]
     }
 }
 

@@ -1,13 +1,16 @@
 {
-    "compile": {
-        "os": "linux"
-    },
-    "link": {
+    "mode": {
+        "os": "windows",
+        "arch": "x64",
         "config": "release"
     },
-    "export": {
-        "arch": "x64",
-        "name": "2",
-        "x": 1
+    "compile": {
+        "sources": [
+            "src1",
+            "src2"
+        ],
+        "sourcBlackList": [
+            "src1"
+        ]
     }
 }

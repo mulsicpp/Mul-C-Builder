@@ -9,4 +9,4 @@ project(mul-c)
 add_executable(mul-c main.cpp Builder.cpp CLIOptions.cpp)
 target_include_directories(mul-c PUBLIC ../Python311/include)
 
-target_link_libraries(mul-c PUBLIC ../Python311/libs/python311)
+target_link_libraries(mul-c PUBLIC ../Python311_windows/libs/python311)

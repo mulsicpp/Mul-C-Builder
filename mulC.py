@@ -1,10 +1,10 @@
 import json, sys
 
+mode = {}
+[mode['os'], mode['arch'], mode['config']] = sys.argv[2].split('/')
 
-[platform, arch, config] = sys.argv[2].split('/')
 
-
-_vars = {}
+_vars = { '_os': mode['os'], '_arch': mode['arch'], '_config': mode['config'] }
 
 for var_str in sys.argv[3].split(';'):
     if(var_str != ''):
@@ -12,6 +12,7 @@ for var_str in sys.argv[3].split(';'):
         _vars[var[0]] = var[1]
 
 def output(config):
+
     json_object = json.dumps(config, indent = 4)
     file = open(sys.argv[1], 'w')
     file.write(json_object)
@@ -24,4 +25,10 @@ def var(name):
         return ''
 
 def app(name):
-    return name if platform == 'linux' else name + '.exe'
+    return name + '.exe' if os == 'windows' else name
+
+def lib(name):
+    return name + '.lib' if os == 'windows' else 'lib' + name + '.a'
+
+def dll(name):
+    return name + '.dll' if os == 'windows' else 'lib' + name + '.so'

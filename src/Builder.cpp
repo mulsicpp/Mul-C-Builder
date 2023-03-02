@@ -8,7 +8,7 @@
 #endif
 
 #include <filesystem>
-
+#include <fstream>
 #include <string>
 
 #if defined(_WIN32)
@@ -19,6 +19,10 @@
 #include "../python3.8_linux/include/Python.h"
 #endif
 
+#include "jsonUtils.h"
+
+using json = nlohmann::json;
+
 #include "Builder.h"
 #include "utils.h"
 
@@ -28,7 +32,7 @@ using Os = BuildMode::OperatinSystem;
 using Arch = BuildMode::Architecture;
 using Config = BuildMode::Configuration;
 
-static void add_path_if_free(std::vector<std::string> &list, std::string element)
+static void addPathIfFree(std::vector<std::string> &list, std::string element)
 {
     for (const auto &el : list)
     {
@@ -38,11 +42,19 @@ static void add_path_if_free(std::vector<std::string> &list, std::string element
     list.push_back(element);
 }
 
+static bool isSubPath(const std::string &base, const std::string &sub)
+{
+    std::string relative = std::filesystem::relative(sub, base).string();
+    // Size check for a "." result.
+    // If the path starts with "..", it's not a subdirectory.
+    return relative.size() == 1 || relative[0] != '.' && relative[1] != '.';
+}
+
 void Builder::initPaths(void)
 {
     initialPath = std::filesystem::canonical(std::filesystem::current_path());
 
-    #if defined(_WIN32)
+#if defined(_WIN32)
     char result[MAX_PATH];
     GetModuleFileNameA(NULL, result, MAX_PATH);
 #endif
@@ -184,10 +196,10 @@ void Builder::generateBuildInfo(void)
 
     if (python)
     {
-        FILE* file = fopen(buildFilePath.string().c_str(), "r");
-        if(file == nullptr)
+        FILE *file = fopen(buildFilePath.string().c_str(), "rb");
+        if (file == nullptr)
             error("The build file \'%s\' could not be opened", buildFilePath.string().c_str());
-        //mbstowcs()
+        // mbstowcs()
         wchar_t nameW[] = L"mulC";
         wchar_t targetFileW[1024];
         wchar_t varsW[4096];
@@ -201,14 +213,11 @@ void Builder::generateBuildInfo(void)
         sprintf(mode, "%s/%s/%s", this->mode.os == Os::WINDOWS ? "windows" : "linux", this->mode.arch == Arch::X64 ? "x64" : "x86", this->mode.config == Config::RELEASE ? "release" : "debug");
         mbstowcs(modeW, mode, 128);
 
-
         char vars[4096];
         char *ptr = vars;
-        for(const auto& [name, value] : cliOptions.vars)
+        for (const auto &[name, value] : cliOptions.vars)
             ptr += sprintf(ptr, "%s=%s;", name.c_str(), value.c_str());
         mbstowcs(varsW, vars, 4096);
-
-        printf("'%s'\n", vars);
 
         Py_SetProgramName(args[0]);
         Py_Initialize();
@@ -218,7 +227,7 @@ void Builder::generateBuildInfo(void)
 
         fseek(file, 0, SEEK_END);
         int length = ftell(file);
-        fseek (file, 0, SEEK_SET);
+        fseek(file, 0, SEEK_SET);
 
         char *buffer = new char[length + 1];
         fread(buffer, 1, length, file);
@@ -231,11 +240,34 @@ void Builder::generateBuildInfo(void)
 
         fclose(file);
 
-        if(PyRun_SimpleString(buffer) != 0)
+        if (PyRun_SimpleString(buffer) != 0)
             error("Python script has errors");
 
         Py_Finalize();
+
+        delete[] buffer;
     }
+
+    std::filesystem::current_path(buildFilePath.parent_path());
+
+    std::ifstream jsonFile(buildFilePath.filename().string());
+    json jsonData = json::parse(jsonFile);
+
+    const json compile = jsonRequire<json>(jsonData, "compile");
+
+    jsonOnEach<std::string>(compile, "sources", [this](const std::string str)
+                            {
+                                std::filesystem::path source(str);
+                                printf("%s\n", source.string().c_str());
+                                // if(std::filesystem::is_directory(source))
+                            });
+
+    jsonTryOnEach<std::string>(compile, "sourceBlackList", [this](const std::string str)
+                            {
+                                std::filesystem::path source(str);
+                                printf("-%s\n", source.string().c_str());
+                                // if(std::filesystem::is_directory(source))
+                            });
 }
 
 void Builder::build(void)

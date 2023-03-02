@@ -1,0 +1,51 @@
+{
+    "mode": {
+        "os": "windows",
+        "arch": "x64",
+        "config": "release"
+    },
+    "compile": {
+        "sources": [],
+        "sourceBlackList": [],
+        "std": "c++14",
+        "includePaths": [],
+        "defines": [],
+        "additionalFlags": []
+    },
+    "output": {
+        "type": "app",
+        "path": "out/app.exe",
+        "libraryPaths": [],
+        "librarys": [],
+        "namedLibraries": [],
+        "additionalFlags": []
+    },
+    "require": [],
+    "preBuildCommands": [
+        {
+            "appPath": "app.exe",
+            "args": []
+        }
+    ],
+    "postBuildCommands": [],
+    "exports": [
+        {
+            "type": "headers",
+            "srcPath": "src",
+            "destPath": "lib/include"
+        },
+        {
+            "type": "file",
+            "srcPath": "out/windows_x64",
+            "destPath": "lib/windows_x64"
+        }
+    ],
+    "exportSettings": {
+        "includePaths": [],
+        "defines": [],
+        "libraryPaths": [],
+        "librarys": [],
+        "namedLibraries": [],
+        "additionalFlags": []
+    }
+}
