@@ -1,5 +1,8 @@
 #pragma once
 
+#define UPDATED_CODE 0x1
+#define ERROR_CODE 0x2
+
 #define F_RESET "\033[0m"
 
 #define F_BLACK "\033[0;30m"
@@ -40,3 +43,22 @@ void warning(const char *str, Ts... args)
     printf(str, args...);
     printf("\n" F_RESET);
 }
+
+#if defined(_WIN32)
+#define OS_NAME "windows"
+#define OS_INCLUDE_PATH(x) "/I\"" + x + "\" "
+#define OS_LIBRARY_PATH(x) "/LIBPATH:\"" + x + "\" "
+#define OS_NAMED_LIBRARY(x) "\"" + x + ".lib\" "
+#define OS_DEFINE(x) "/D\"" + x + "\" "
+#define OS_STD(x) "/std:\"" + x + "\" "
+#define OS_DIR_SEPARATOR "\\"
+
+#elif defined(__linux__)
+#define OS_NAME "linux"
+#define OS_INCLUDE_PATH(x) "-I\"" + x + "\" "
+#define OS_LIBRARY_PATH(x) "-L\"" + x + "\" "
+#define OS_NAMED_LIBRARY(x) "-l\"" + x + "\" "
+#define OS_DEFINE(x) "-D\"" + x + "\" "
+#define OS_STD(x) "-std=\"" + x + "\" "
+#define OS_DIR_SEPARATOR "/"
+#endif

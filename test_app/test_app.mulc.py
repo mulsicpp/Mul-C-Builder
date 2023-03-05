@@ -4,12 +4,16 @@ config = {
     "mode": mode,
     "compile": {
         "sources": [
-            "src1",
-            "src2"
+            "src",
+            "src_bla"
         ],
         "sourceBlackList": [
-            "src1"
+            "src/src_nested"
         ]
+    },
+    "output": {
+        "type": "app",
+        "path": F"out/{app('test')}"
     }
 }
 

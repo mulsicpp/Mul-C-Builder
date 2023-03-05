@@ -6,11 +6,15 @@
     },
     "compile": {
         "sources": [
-            "src1",
-            "src2"
+            "src",
+            "src_bla"
         ],
-        "sourcBlackList": [
-            "src1"
+        "sourceBlackList": [
+            "src/src_nested"
         ]
+    },
+    "output": {
+        "type": "app",
+        "path": "out/test.exe"
     }
 }

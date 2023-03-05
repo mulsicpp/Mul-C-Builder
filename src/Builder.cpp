@@ -8,6 +8,9 @@
 #endif
 
 #include <filesystem>
+
+#define EXISTS std::filesystem::exists
+
 #include <fstream>
 #include <string>
 
@@ -34,6 +37,17 @@ using Config = BuildMode::Configuration;
 
 static void addPathIfFree(std::vector<std::string> &list, std::string element)
 {
+    const auto &canonical = std::filesystem::canonical(element);
+    for (const auto &el : list)
+    {
+        if (std::filesystem::canonical(el) == canonical)
+            return;
+    }
+    list.push_back(element);
+}
+
+static void addElementIfFree(std::vector<std::string> &list, std::string element)
+{
     for (const auto &el : list)
     {
         if (el == element)
@@ -42,7 +56,7 @@ static void addPathIfFree(std::vector<std::string> &list, std::string element)
     list.push_back(element);
 }
 
-static bool isSubPath(const std::string &base, const std::string &sub)
+static bool isSubPath(const std::filesystem::path &base, const std::filesystem::path &sub)
 {
     std::string relative = std::filesystem::relative(sub, base).string();
     // Size check for a "." result.
@@ -194,11 +208,15 @@ void Builder::generateBuildInfo(void)
         }
     }
 
+    buildFilePath = std::filesystem::canonical(buildFilePath);
+
+    std::filesystem::current_path(buildFilePath.parent_path());
+
     if (python)
     {
-        FILE *file = fopen(buildFilePath.string().c_str(), "rb");
+        FILE *file = fopen(buildFilePath.filename().string().c_str(), "rb");
         if (file == nullptr)
-            error("The build file \'%s\' could not be opened", buildFilePath.string().c_str());
+            error("The build file \'%s\' could not be opened", buildFilePath.filename().string().c_str());
         // mbstowcs()
         wchar_t nameW[] = L"mulC";
         wchar_t targetFileW[1024];
@@ -253,25 +271,155 @@ void Builder::generateBuildInfo(void)
     std::ifstream jsonFile(buildFilePath.filename().string());
     json jsonData = json::parse(jsonFile);
 
+    const json mode = jsonRequire<json>(jsonData, "mode");
+
+    jsonTryOn<std::string>(mode, "os", [this](const std::string str)
+                           {
+        this->mode.os = str == "windows" ? Os::WINDOWS : (str == "linux" ? Os::LINUX : Os::UNKNOWN);
+        if(this->mode.os == Os::UNKNOWN)
+            error("The operating system \'%s\' is unknown", str);
+        if(this->mode.os != Os::OS)
+            error("The selected operating system \'%s\' does not match the current operating system", str); });
+
+    jsonTryOn<std::string>(mode, "arch", [this](const std::string str)
+                           { this->mode.arch = str == "x64" ? Arch::X64 : (str == "x86" ? Arch::X86 : Arch::UNKNOWN); });
+
+    jsonTryOn<std::string>(mode, "config", [this](const std::string str)
+                           {
+                                if(str == "release")
+                                    this->mode.config = Config::RELEASE;
+                                else if(str == "debug")
+                                    this->mode.config = Config::DEBUG;
+                                else
+                                    error("The configuration \'%s\' is unknown", str.c_str()); });
+
     const json compile = jsonRequire<json>(jsonData, "compile");
 
     jsonOnEach<std::string>(compile, "sources", [this](const std::string str)
                             {
                                 std::filesystem::path source(str);
-                                printf("%s\n", source.string().c_str());
-                                // if(std::filesystem::is_directory(source))
-                            });
+                                if(!EXISTS(source))
+                                    error("The source \'%s\' does not exist", source.string().c_str());
+                                if(std::filesystem::is_directory(source)){
+                                    auto iterator = std::filesystem::recursive_directory_iterator(source);
+                                    for(const auto &entry : iterator) {
+                                        if(entry.path().extension() == ".cpp" ||entry.path().extension() == ".c")
+                                            info.compile.translationUnits.push_back({entry.path().string(), ""});
+                                    }
+                                } else {
+                                    info.compile.translationUnits.push_back({source.string(), ""});
+                                } });
 
     jsonTryOnEach<std::string>(compile, "sourceBlackList", [this](const std::string str)
-                            {
+                               {
                                 std::filesystem::path source(str);
-                                printf("-%s\n", source.string().c_str());
-                                // if(std::filesystem::is_directory(source))
-                            });
+                                if(!EXISTS(source))
+                                    error("The source \'%s\' does not exist", source.string().c_str());
+                                if(std::filesystem::is_directory(source)){
+                                    for(int i = 0; i < info.compile.translationUnits.size();)
+                                        if(isSubPath(source, info.compile.translationUnits[i].cFilePath))
+                                            info.compile.translationUnits.erase(info.compile.translationUnits.begin() + i);
+                                        else i++;
+                                } else {
+                                    source = std::filesystem::canonical(source);
+                                    for(int i = 0; i < info.compile.translationUnits.size();)
+                                        if(source == std::filesystem::canonical(info.compile.translationUnits[i].cFilePath))
+                                            info.compile.translationUnits.erase(info.compile.translationUnits.begin() + i);
+                                        else i++;
+                                } });
+
+    jsonTryOn<std::string>(compile, "std", [this](const std::string str)
+                           { info.compile.std = str; });
+
+    jsonTryOnEach<std::string>(compile, "includePaths", [this](const std::string str)
+                               { addPathIfFree(info.compile.includePaths, str); });
+
+    jsonTryOnEach<std::string>(compile, "defines", [this](const std::string str)
+                               { info.compile.defines.push_back(str); });
+
+    jsonTryOnEach<std::string>(compile, "additionalFlags", [this](const std::string str)
+                               { info.compile.additionalFlags.push_back(str); });
+
+    const json output = jsonRequire<json>(jsonData, "output");
+
+    jsonOn<std::string>(output, "type", [this](const std::string str)
+                        {
+                            if(str == "app")
+                                info.output.type = BuildInfo::Output::Type::APP;
+                            else if(str == "lib")
+                                info.output.type = BuildInfo::Output::Type::LIB;
+                            else if(str == "dll")
+                                info.output.type = BuildInfo::Output::Type::DLL;
+                            else
+                                error("The type \'%s\' is unknown", str.c_str()); });
+
+    jsonOn<std::string>(output, "path", [this](const std::string str)
+                        { info.output.path = str; });
+
+    jsonTryOnEach<std::string>(output, "libraryPaths", [this](const std::string str)
+                               { addPathIfFree(info.output.libPaths, str); });
+
+    jsonTryOnEach<std::string>(output, "libs", [this](const std::string str)
+                               { addElementIfFree(info.output.libs, str); });
+
+    jsonTryOnEach<std::string>(output, "namedLibs", [this](const std::string str)
+                               { addElementIfFree(info.output.namedLibs, str); });
+
+    jsonTryOnEach<std::string>(output, "additionalFlags", [this](const std::string str)
+                               { info.output.additionalFlags.push_back(str); });
+
+    jsonTryOnEach<std::string>(jsonData, "require", [this](const std::string str)
+                               { addPathIfFree(info.requirements, str); });
+
+    jsonTryOnEach<std::string>(jsonData, "preBuildCommands", [this](const json cmd) {
+        BuildInfo::Command command;
+        command.appPath = jsonRequire<std::string>(cmd, "appPath");
+        command.args = "";
+
+        jsonOnEach<std::string>(cmd, "agrs", [&](std::string arg) {
+            command.args += " " + arg;
+        });
+
+        info.preBuildCommands.push_back(command);
+    });
+
+    jsonTryOnEach<json>(jsonData, "postBuildCommands", [this](const json cmd) {
+        BuildInfo::Command command;
+        command.appPath = jsonRequire<std::string>(cmd, "appPath");
+        command.args = "";
+
+        jsonOnEach<std::string>(cmd, "agrs", [&](std::string arg) {
+            command.args += " " + arg;
+        });
+
+        info.postBuildCommands.push_back(command);
+    });
+
+    jsonTryOnEach<json>(jsonData, "exports", [this](const json e) {
+        BuildInfo::Export exp;
+
+        const auto type_str = jsonRequire<std::string>(e, "type");
+        if(type_str == "file")
+            exp.type = BuildInfo::Export::Type::FILE;
+        else if(type_str == "headers")
+            exp.type = BuildInfo::Export::Type::HEADERS;
+        else
+            error("The export type \'%s\' is unknown", type_str.c_str());
+        exp.srcPath = jsonRequire<std::string>(e, "srcPath");
+        exp.dstPath = jsonRequire<std::string>(e, "dstPath");
+        
+        info.exports.push_back(exp);
+    });
+
+    jsonTryOn<json>(jsonData, "exportSettings", [this](json settings){
+        info.exportSettings = settings.dump(4);
+    });
 }
 
 void Builder::build(void)
 {
+    for (const auto &tu : info.compile.translationUnits)
+        printf("%s\n", tu.cFilePath.c_str());
 }
 
 void Builder::setup(void)

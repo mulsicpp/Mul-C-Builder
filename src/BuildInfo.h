@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 struct BuildInfo
 {
@@ -37,6 +38,8 @@ struct BuildInfo
         std::vector<std::string> additionalFlags;
     } output;
 
+    std::vector<std::string> requirements;
+
     struct Export
     {
         enum class Type {
@@ -44,18 +47,20 @@ struct BuildInfo
             HEADERS
         } type;
         std::string srcPath;
-        std::string destPath;
+        std::string dstPath;
     };
 
     std::vector<Export> exports;
 
     struct Command {
         std::string appPath;
-        std::vector<std::string> args;
+        std::string args;
     };
 
     std::vector<Command> preBuildCommands;
     std::vector<Command> postBuildCommands;
 
     std::string exportSettings = "";
+
+    std::unordered_map<std::string, std::vector<std::string>> headerDependencies;
 };

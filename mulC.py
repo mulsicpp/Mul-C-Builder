@@ -25,10 +25,10 @@ def var(name):
         return ''
 
 def app(name):
-    return name + '.exe' if os == 'windows' else name
+    return name + '.exe' if mode['os'] == 'windows' else name
 
 def lib(name):
-    return name + '.lib' if os == 'windows' else 'lib' + name + '.a'
+    return name + '.lib' if mode['os'] == 'windows' else 'lib' + name + '.a'
 
 def dll(name):
-    return name + '.dll' if os == 'windows' else 'lib' + name + '.so'
+    return name + '.dll' if mode['os'] == 'windows' else 'lib' + name + '.so'

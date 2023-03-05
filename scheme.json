@@ -16,7 +16,7 @@
         "type": "app",
         "path": "out/app.exe",
         "libraryPaths": [],
-        "librarys": [],
+        "libraries": [],
         "namedLibraries": [],
         "additionalFlags": []
     },
@@ -32,12 +32,12 @@
         {
             "type": "headers",
             "srcPath": "src",
-            "destPath": "lib/include"
+            "dstPath": "lib/include"
         },
         {
             "type": "file",
             "srcPath": "out/windows_x64",
-            "destPath": "lib/windows_x64"
+            "dstPath": "lib/windows_x64"
         }
     ],
     "exportSettings": {

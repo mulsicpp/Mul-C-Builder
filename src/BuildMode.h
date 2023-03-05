@@ -3,7 +3,7 @@
 #if defined(_WIN32)
     #define OS WINDOWS
 #elif defined(__linux__)
-    #define OS LINUX_UNIX
+    #define OS LINUX
 #else
     #define OS UNKNOWN
 #endif
@@ -12,7 +12,7 @@ struct BuildMode {
     enum class OperatinSystem {
         UNKNOWN,
         WINDOWS,
-        LINUX_UNIX
+        LINUX
     } os;
 
     enum class Architecture {
