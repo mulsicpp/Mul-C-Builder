@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utils.h"
 #include "../json/single_include/nlohmann/json.hpp"
 
 template <class T>

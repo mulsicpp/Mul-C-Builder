@@ -1,6 +1,6 @@
 {
     "mode": {
-        "os": "windows",
+        "os": "linux",
         "arch": "x64",
         "config": "release"
     },
@@ -15,6 +15,6 @@
     },
     "output": {
         "type": "app",
-        "path": "out/test.exe"
+        "path": "out/test"
     }
 }

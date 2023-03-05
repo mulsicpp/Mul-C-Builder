@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <vector>
 #include <string>
+#include <algorithm>
 #include <string.h>
 
 using Os = BuildMode::OperatinSystem;
@@ -164,7 +165,7 @@ int SystemInterface::compile(BuildInfo::Compile::TranslationUnit tu, BuildInfo *
 
     std::string str;
     
-    FILE *pipe = win_popen(((mode.arch == Arch::X64 ? compiler64 : compiler32) + "\\cl.exe").c_str(), (char *)(std::string(" ") + (mode.config == Config::DEBUG ? "/DEBUG:FASTLINK " : "") + generateCompileFlags(&(buildInfo->compile)) + systemIncludePaths + "/c /showIncludes /EHsc /MD /Fo\"" + tu.oFilePath + "\" \"" + tu.cFilePath + "\"").c_str(), &out, &pi);
+    FILE *pipe = win_popen(((mode.arch == Arch::X64 ? compiler64 : compiler32) + "\\cl.exe").c_str(), (char *)(std::string(mode.config == Config::DEBUG ? "/DEBUG:FASTLINK " : "") + generateCompileFlags(&(buildInfo->compile)) + systemIncludePaths + "/c /showIncludes /EHsc /MD /Fo\"" + tu.oFilePath + "\" \"" + tu.cFilePath + "\"").c_str(), &out, &pi);
 
     if (!pipe)
     {
@@ -273,21 +274,25 @@ int SystemInterface::compile(BuildInfo::Compile::TranslationUnit tu, BuildInfo *
 #endif
 }
 
-/*
-int SystemInterface::link_App(ProjectInfo *p_Proj_Info)
+
+int SystemInterface::linkApp(BuildInfo *buildInfo, BuildMode mode)
 {
-    std::string o_Files = "";
-    for (const auto &tu : p_Proj_Info->files)
-        o_Files += "\"" + tu.o_File + "\" ";
+    std::string oFiles = "";
+    for (const auto &tu : buildInfo->compile.translationUnits)
+        oFiles += "\"" + tu.oFilePath + "\" ";
+
+    std::string libStr = "";
+    for (const auto &lib : buildInfo->output.libs)
+        libStr += "\"" + lib + "\" ";
 
     char buffer[1024];
 #if defined(_WIN32)
     HANDLE out;
     PROCESS_INFORMATION pi;
     // TODO fix this shit
-    FILE *pipe = win_popen(((p_Proj_Info->arch == X64 ? compiler64 : compiler32) + "\\link.exe").c_str(), (char *)(" /out:\"" + p_Proj_Info->output_Path + "\" " + o_Files + p_Proj_Info->libs + p_Proj_Info->link_Flags + (p_Proj_Info->arch == X64 ? system_Lib64_Paths : system_Lib32_Paths)).c_str(), &out, &pi);
+    FILE *pipe = win_popen(((mode.arch == Arch::X64 ? compiler64 : compiler32) + "\\link.exe").c_str(), (char *)(std::string(mode.config == Config::DEBUG ? "/DEBUG:FASTLINK " : "") + "/out:\"" + buildInfo->output.path + "\" " + oFiles + libStr + generateLinkerFlags(&(buildInfo->output)) + (mode.arch == Arch::X64 ? systemLib64Paths : systemLib32Paths)).c_str(), &out, &pi);
 #elif defined(__linux__)
-    FILE *pipe = popen(("g++ -march=x86-64 " + std::string(p_Proj_Info->arch == X86 ? "-m32 " : "-m64 ") + "-o \"" + p_Proj_Info->output_Path + "\" " + o_Files + p_Proj_Info->link_Flags + +" " + p_Proj_Info->libs + " 2>&1").c_str(), "r");
+    FILE *pipe = popen(("g++ -march=x86-64 " + std::string(mode.arch == Arch::X86 ? "-m32 " : "-m64 ") + "-o \"" + buildInfo->output.path + "\" " + oFiles + generateLinkerFlags(&(buildInfo->output)) + libStr + " 2>&1").c_str(), "r");
 #endif
     if (!pipe)
     {
@@ -308,18 +313,18 @@ int SystemInterface::link_App(ProjectInfo *p_Proj_Info)
 #endif
 }
 
-int SystemInterface::link_Lib(ProjectInfo *p_Proj_Info)
+int SystemInterface::createLib(BuildInfo *buildInfo, BuildMode mode)
 {
     char buffer[1024];
-    std::string o_Files = "";
-    for (const auto &tu : p_Proj_Info->files)
-        o_Files += "\"" + tu.o_File + "\" ";
+    std::string oFiles = "";
+    for (const auto &tu : buildInfo->compile.translationUnits)
+        oFiles += "\"" + tu.oFilePath + "\" ";
 #if defined(_WIN32)
     HANDLE out;
     PROCESS_INFORMATION pi;
-    FILE *pipe = win_popen(((p_Proj_Info->arch == X64 ? compiler64 : compiler32) + "\\lib.exe").c_str(), (char *)(" /out:\"" + p_Proj_Info->output_Path + "\" " + o_Files).c_str(), &out, &pi);
+    FILE *pipe = win_popen(((mode.arch == Arch::X64 ? compiler64 : compiler32) + "\\lib.exe").c_str(), (char *)(" /out:\"" + buildInfo->output.path + "\" " + oFiles).c_str(), &out, &pi);
 #elif defined(__linux__)
-    FILE *pipe = popen(("ar rcs \"" + p_Proj_Info->output_Path + "\" " + o_Files + " 2>&1").c_str(), "r");
+    FILE *pipe = popen(("ar rcs \"" + buildInfo->output.path + "\" " + oFiles + " 2>&1").c_str(), "r");
 #endif
     if (!pipe)
     {
@@ -340,7 +345,45 @@ int SystemInterface::link_Lib(ProjectInfo *p_Proj_Info)
 #endif
 }
 
-int SystemInterface::execute_Program(const char *prog, const char *args)
+int SystemInterface::linkDll(BuildInfo *buildInfo, BuildMode mode)
+{
+    std::string oFiles = "";
+    for (const auto &tu : buildInfo->compile.translationUnits)
+        oFiles += "\"" + tu.oFilePath + "\" ";
+
+    std::string libStr = "";
+    for (const auto &lib : buildInfo->output.libs)
+        libStr += "\"" + lib + "\" ";
+
+    char buffer[1024];
+#if defined(_WIN32)
+    HANDLE out;
+    PROCESS_INFORMATION pi;
+    // TODO fix this shit
+    FILE *pipe = win_popen(((mode.arch == Arch::X64 ? compiler64 : compiler32) + "\\link.exe").c_str(), (char *)(std::string(mode.config == Config::DEBUG ? "/DEBUG:FASTLINK " : "") + "/DLL /out:\"" + buildInfo->output.path + "\" " + oFiles + libStr + generateLinkerFlags(&(buildInfo->output)) + (mode.arch == Arch::X64 ? systemLib64Paths : systemLib32Paths)).c_str(), &out, &pi);
+#elif defined(__linux__)
+    FILE *pipe = popen(("g++ --shared -march=x86-64 " + std::string(mode.arch == Arch::X86 ? "-m32 " : "-m64 ") + "-o \"" + buildInfo->output.path + "\" " + oFiles + generateLinkerFlags(&(buildInfo->output)) + libStr + " 2>&1").c_str(), "r");
+#endif
+    if (!pipe)
+    {
+        return ERROR_CODE;
+    }
+
+#if defined(_WIN32)
+    for (int i = 0; i < 3; i++)
+        fgets(buffer, 1024, pipe);
+#endif
+
+    while (fgets(buffer, 1024, pipe))
+        printf("%s", buffer);
+#if defined(_WIN32)
+    return win_pclose(&out, &pi) == 0 ? UPDATED_CODE : ERROR_CODE;
+#elif defined(__linux__)
+    return pclose(pipe) == 0 ? UPDATED_CODE : ERROR_CODE;
+#endif
+}
+
+int SystemInterface::executeProgram(const char *prog, const char *args)
 {
     char buffer[1024];
 #if defined(_WIN32)

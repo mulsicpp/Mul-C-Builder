@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 project(mul-c)
 
 
-add_executable(mul-c main.cpp Builder.cpp CLIOptions.cpp)
+add_executable(mul-c main.cpp Builder.cpp CLIOptions.cpp SystemInterface.cpp)
 target_include_directories(mul-c PUBLIC ../Python311/include)
 
 target_link_libraries(mul-c PUBLIC ../Python311_windows/libs/python311)
