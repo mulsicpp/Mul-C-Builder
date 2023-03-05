@@ -6,6 +6,8 @@
 
 struct BuildInfo
 {
+    std::string group = "default";
+
     struct Compile {
         struct TranslationUnit {
             std::string cFilePath;

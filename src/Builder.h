@@ -15,6 +15,8 @@ private:
     std::filesystem::path builderPath = "";
     std::filesystem::path initialPath = "";
     std::filesystem::path buildFilePath = "";
+
+    bool python = true;
 public:
     void run(int argc, char *argv[]);
 

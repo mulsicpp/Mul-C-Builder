@@ -85,14 +85,14 @@ void Builder::run(int argc, char *argv[])
     initPaths();
     passArgs(argc, argv);
     if (cliOptions.action == CLIOptions::Action::SETUP)
-    {
         setup();
-    }
-    generateBuildInfo();
-    if (cliOptions.action == CLIOptions::Action::CLEAR)
+    else if (cliOptions.action == CLIOptions::Action::CLEAR)
         clear();
     else
+    {
+        generateBuildInfo();
         build();
+    }
 }
 
 void Builder::passArgs(int argc, char *argv[])
@@ -136,46 +136,46 @@ A:
                 goto A;
         warning("Unknown flag \'%s\' ignored", flagName);
     }
-}
-
-void Builder::generateBuildInfo(void)
-{
-    bool python = true;
-
-    if (std::filesystem::is_directory(cliOptions.path))
-    {
-        std::vector<std::filesystem::path> pyFiles;
-        std::vector<std::filesystem::path> jsonFiles;
-
-        auto iterator = std::filesystem::directory_iterator(cliOptions.path);
-        for (const auto &entry : iterator)
+    if (cliOptions.action != CLIOptions::Action::SETUP)
+        if (std::filesystem::is_directory(cliOptions.path))
         {
-            if (entry.is_regular_file())
+            std::vector<std::filesystem::path> pyFiles;
+            std::vector<std::filesystem::path> jsonFiles;
+
+            auto iterator = std::filesystem::directory_iterator(cliOptions.path);
+            for (const auto &entry : iterator)
             {
-                std::string s = entry.path().string();
-                int py_length = sizeof("mulc.py") - 1;
-                int json_length = sizeof("mulc.json") - 1;
-                if (s.length() > py_length && s.substr(s.length() - py_length) == "mulc.py")
-                    pyFiles.push_back(entry.path());
-                else if (s.length() > json_length && s.substr(s.length() - json_length) == "mulc.json")
-                    jsonFiles.push_back(entry.path());
+                if (entry.is_regular_file())
+                {
+                    std::string s = entry.path().string();
+                    int py_length = sizeof("mulc.py") - 1;
+                    int json_length = sizeof("mulc.json") - 1;
+                    if (s.length() > py_length && s.substr(s.length() - py_length) == "mulc.py")
+                        pyFiles.push_back(entry.path());
+                    else if (s.length() > json_length && s.substr(s.length() - json_length) == "mulc.json")
+                        jsonFiles.push_back(entry.path());
+                }
             }
-        }
-        if (pyFiles.size() == 1)
-        {
-            buildFilePath = pyFiles[0].string();
-            python = true;
-        }
-        else if (pyFiles.size() == 0)
-        {
-            if (jsonFiles.size() == 1)
+            if (pyFiles.size() == 1)
             {
-                buildFilePath = jsonFiles[0].string();
-                python = false;
+                buildFilePath = pyFiles[0].string();
+                python = true;
             }
-            else if (jsonFiles.size() == 0)
+            else if (pyFiles.size() == 0)
             {
-                error("No build file found");
+                if (jsonFiles.size() == 1)
+                {
+                    buildFilePath = jsonFiles[0].string();
+                    python = false;
+                }
+                else if (jsonFiles.size() == 0)
+                {
+                    error("No build file found");
+                }
+                else
+                {
+                    error("Build file is ambiguous");
+                }
             }
             else
             {
@@ -184,32 +184,30 @@ void Builder::generateBuildInfo(void)
         }
         else
         {
-            error("Build file is ambiguous");
+            std::string s = cliOptions.path;
+            int py_length = sizeof("mulc.py") - 1;
+            int json_length = sizeof("mulc.json") - 1;
+            if (s.length() > py_length && s.substr(s.length() - py_length) == "mulc.py")
+            {
+                buildFilePath = cliOptions.path;
+                python = true;
+            }
+            else if (s.length() > json_length && s.substr(s.length() - json_length) == "mulc.json")
+            {
+                buildFilePath = cliOptions.path;
+                python = false;
+            }
+            else
+            {
+                error("The specified file \'%s\' is not a build file", cliOptions.path.c_str());
+            }
         }
-    }
-    else
-    {
-        std::string s = cliOptions.path;
-        int py_length = sizeof("mulc.py") - 1;
-        int json_length = sizeof("mulc.json") - 1;
-        if (s.length() > py_length && s.substr(s.length() - py_length) == "mulc.py")
-        {
-            buildFilePath = cliOptions.path;
-            python = true;
-        }
-        else if (s.length() > json_length && s.substr(s.length() - json_length) == "mulc.json")
-        {
-            buildFilePath = cliOptions.path;
-            python = false;
-        }
-        else
-        {
-            error("The specified file \'%s\' is not a build file", cliOptions.path.c_str());
-        }
-    }
 
     buildFilePath = std::filesystem::canonical(buildFilePath);
+}
 
+void Builder::generateBuildInfo(void)
+{
     std::filesystem::current_path(buildFilePath.parent_path());
 
     if (python)
@@ -295,6 +293,11 @@ void Builder::generateBuildInfo(void)
 
     const json compile = jsonRequire<json>(jsonData, "compile");
 
+    jsonTryOn<std::string>(jsonData, "group", [this](std::string group)
+                           {
+                                if(group.size() > 0)
+                                    info.group = group; });
+
     jsonOnEach<std::string>(compile, "sources", [this](const std::string str)
                             {
                                 std::filesystem::path source(str);
@@ -371,7 +374,8 @@ void Builder::generateBuildInfo(void)
     jsonTryOnEach<std::string>(jsonData, "require", [this](const std::string str)
                                { addPathIfFree(info.requirements, str); });
 
-    jsonTryOnEach<std::string>(jsonData, "preBuildCommands", [this](const json cmd) {
+    jsonTryOnEach<std::string>(jsonData, "preBuildCommands", [this](const json cmd)
+                               {
         BuildInfo::Command command;
         command.appPath = jsonRequire<std::string>(cmd, "appPath");
         command.args = "";
@@ -380,10 +384,10 @@ void Builder::generateBuildInfo(void)
             command.args += " " + arg;
         });
 
-        info.preBuildCommands.push_back(command);
-    });
+        info.preBuildCommands.push_back(command); });
 
-    jsonTryOnEach<json>(jsonData, "postBuildCommands", [this](const json cmd) {
+    jsonTryOnEach<json>(jsonData, "postBuildCommands", [this](const json cmd)
+                        {
         BuildInfo::Command command;
         command.appPath = jsonRequire<std::string>(cmd, "appPath");
         command.args = "";
@@ -392,10 +396,10 @@ void Builder::generateBuildInfo(void)
             command.args += " " + arg;
         });
 
-        info.postBuildCommands.push_back(command);
-    });
+        info.postBuildCommands.push_back(command); });
 
-    jsonTryOnEach<json>(jsonData, "exports", [this](const json e) {
+    jsonTryOnEach<json>(jsonData, "exports", [this](const json e)
+                        {
         BuildInfo::Export exp;
 
         const auto type_str = jsonRequire<std::string>(e, "type");
@@ -408,12 +412,10 @@ void Builder::generateBuildInfo(void)
         exp.srcPath = jsonRequire<std::string>(e, "srcPath");
         exp.dstPath = jsonRequire<std::string>(e, "dstPath");
         
-        info.exports.push_back(exp);
-    });
+        info.exports.push_back(exp); });
 
-    jsonTryOn<json>(jsonData, "exportSettings", [this](json settings){
-        info.exportSettings = settings.dump(4);
-    });
+    jsonTryOn<json>(jsonData, "exportSettings", [this](json settings)
+                    { info.exportSettings = settings.dump(4); });
 }
 
 void Builder::build(void)
@@ -428,4 +430,11 @@ void Builder::setup(void)
 
 void Builder::clear(void)
 {
+    std::filesystem::path path("mulC.build");
+
+    if (cliOptions.group.size() > 0)
+        path += "/" + cliOptions.group;
+
+    if (EXISTS(path))
+        std::filesystem::remove_all(path);
 }

@@ -40,6 +40,8 @@ struct CLIOptions
     bool force = false;
     std::string path = ".";
 
+    std::string group = "";
+
     enum class Action {
         BUILD,
         SETUP,
@@ -56,6 +58,7 @@ struct CLIOptions
             char *value = strchr(name, '=');
             *value++ = 0;
             vars[name] = value;
-        })
+        }),
+        Flag({"--group", "-g"}, [this](char* s){ this->group = s; })
     };
 };
